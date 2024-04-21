@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/urfave/cli/v2 v2.26.0
-	gitlab.collabox.dev/go/nse/nsjet v0.0.5
+	gitlab.collabox.dev/go/nse/nsjet v0.0.8
 	gopkg.in/yaml.v3 v3.0.1
 )
 

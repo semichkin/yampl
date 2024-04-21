@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -41,6 +42,7 @@ func Run() {
 		},
 		Action: func(context *cli.Context) error {
 			return render(
+				context.Context,
 				context.Path("config"),
 				context.Path("output"),
 				context.Bool("tmp"),
@@ -58,13 +60,13 @@ var (
 	plushErrReg = regexp.MustCompile(`line (\\d+):`)
 )
 
-func render(configPath, outPath string, tmp bool) error {
+func render(ctx context.Context, configPath, outPath string, tmp bool) error {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
 		return errFailedToReadConfig(configPath, err)
 	}
 
-	configRendered, err := renderTemplate(configPath, string(configContent), nil)
+	configRendered, err := renderTemplate(ctx, configPath, string(configContent), nil)
 	if err != nil {
 		return errFailedToRenderConfig(configPath, err)
 	}
@@ -104,7 +106,7 @@ func render(configPath, outPath string, tmp bool) error {
 		return errFailedToReadTemplate(c.Template, err)
 	}
 
-	templateRendered, err := renderTemplate(c.Template, string(templateContent), c.Params)
+	templateRendered, err := renderTemplate(ctx, c.Template, string(templateContent), c.Params)
 	if err != nil {
 		matches := plushErrReg.FindStringSubmatch(err.Error())
 		if len(matches) <= 1 {
@@ -130,7 +132,7 @@ func render(configPath, outPath string, tmp bool) error {
 	return nil
 }
 
-func renderTemplate(path, content string, vars map[string]any) (string, error) {
+func renderTemplate(ctx context.Context, path, content string, vars map[string]any) (string, error) {
 	l := nsjet.NewInMemLoader()
 
 	l.Set(path, content)
@@ -141,13 +143,13 @@ func renderTemplate(path, content string, vars map[string]any) (string, error) {
 		panic(err)
 	}
 
-	ctx := map[string]reflect.Value{}
+	reflectVars := map[string]reflect.Value{}
 	for k, v := range vars {
-		ctx[k] = reflect.ValueOf(v)
+		reflectVars[k] = reflect.ValueOf(v)
 	}
 
 	result := bytes.NewBuffer(nil)
-	if err := tempalte.Execute(result, ctx, nil); err != nil {
+	if err := tempalte.Execute(ctx, result, reflectVars, nil); err != nil {
 		return "", err
 	}
 
